@@ -1,8 +1,8 @@
 ---
-name: Feature request
+name: Feature
 about: 새로운 기능 또는 개선 사항을 작성합니다.
 title: "[feat] "
-labels: enhancement
+labels: feature
 assignees: ''
 ---
 
