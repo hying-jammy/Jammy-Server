@@ -1,5 +1,7 @@
 package com.jammy.auth.controller;
 
+import com.jammy.auth.dto.LoginRequest;
+import com.jammy.auth.dto.LoginResponse;
 import com.jammy.auth.dto.SignupRequest;
 import com.jammy.auth.service.AuthService;
 import com.jammy.global.common.CommonResponse;
@@ -25,5 +27,13 @@ public class AuthController {
         return ResponseEntity
                 .status(SuccessCode.SIGNUP_SUCCESS.getHttpStatus())
                 .body(CommonResponse.success(SuccessCode.SIGNUP_SUCCESS, "OK"));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<CommonResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
+        return ResponseEntity
+                .status(SuccessCode.LOGIN_SUCCESS.getHttpStatus())
+                .body(CommonResponse.success(SuccessCode.LOGIN_SUCCESS, response));
     }
 }

@@ -1,5 +1,7 @@
 package com.jammy.auth.service;
 
+import com.jammy.auth.dto.LoginRequest;
+import com.jammy.auth.dto.LoginResponse;
 import com.jammy.auth.dto.SignupRequest;
 import com.jammy.global.common.code.ErrorCode;
 import com.jammy.global.exception.BusinessException;
@@ -29,5 +31,16 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+    }
+
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (!request.password().equals(user.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        return LoginResponse.from(user);
     }
 }
