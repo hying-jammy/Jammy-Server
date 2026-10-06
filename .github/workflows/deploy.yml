@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - chore/7-cicd-deploy
   workflow_dispatch:
 
 jobs:
