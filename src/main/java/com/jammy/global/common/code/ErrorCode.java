@@ -33,6 +33,10 @@ public enum ErrorCode implements BaseCode {
 
     // time capsule
     TIME_CAPSULE_LOCKED(HttpStatus.FORBIDDEN, 403, "아직 열 수 없는 타임캡슐입니다."),
+
+    // file
+    EMPTY_FILE(HttpStatus.BAD_REQUEST, 400, "업로드할 파일이 비어 있습니다."),
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 500, "파일 업로드에 실패했습니다."),
     ;
 
     private final HttpStatus httpStatus;

@@ -29,6 +29,9 @@ public enum SuccessCode implements BaseCode {
     // time capsule
     TIME_CAPSULE_RETRIEVED_SUCCESS(HttpStatus.OK, 200, "타임캡슐 조회에 성공했습니다."),
     TIME_CAPSULE_DIARIES_RETRIEVED_SUCCESS(HttpStatus.OK, 200, "타임캡슐 일기 목록 조회에 성공했습니다."),
+
+    // file
+    FILE_UPLOAD_SUCCESS(HttpStatus.OK, 200, "파일 업로드에 성공했습니다."),
     ;
 
     private final HttpStatus httpStatus;
