@@ -1,0 +1,125 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make application.yml
+        run: |
+          mkdir -p src/main/resources
+          echo "${{ secrets.APPLICATION_YML_PROD }}" > src/main/resources/application.yml
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build jar with Gradle
+        run: ./gradlew clean bootJar -x test
+
+      - name: Prepare deployment files
+        run: |
+          mkdir -p deployment
+          JAR_FILE=$(find build/libs -name "*.jar" ! -name "*plain.jar" | head -n 1)
+          cp "$JAR_FILE" deployment/app.jar
+          echo "${{ secrets.APPLICATION_YML_PROD }}" > deployment/application-prod.yml
+
+      - name: Upload deployment files
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-files
+          path: deployment
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download deployment files
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-files
+          path: deployment
+
+      - name: Debug check downloaded files
+        run: ls -R deployment
+
+      - name: Deploy to EC2
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          trap 'rm -f private_key.pem' EXIT
+
+          function sync_file() {
+            local source_file=$1
+            local target_path=$2
+            rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
+              "$source_file" "$EC2_USERNAME@$EC2_HOST:$target_path"
+          }
+
+          {
+            echo "[Unit]"
+            echo "Description=Jammy Spring Boot Server"
+            echo "After=network.target"
+            echo
+            echo "[Service]"
+            echo "User=$EC2_USERNAME"
+            echo "WorkingDirectory=/home/$EC2_USERNAME/jammy-server"
+            echo "ExecStart=/usr/bin/java -jar /home/$EC2_USERNAME/jammy-server/app.jar --spring.profiles.active=prod --spring.config.additional-location=file:/home/$EC2_USERNAME/jammy-server/config/"
+            echo "SuccessExitStatus=143"
+            echo "Restart=always"
+            echo "RestartSec=10"
+            echo
+            echo "[Install]"
+            echo "WantedBy=multi-user.target"
+          } > jammy-server.service
+
+          ssh -i private_key.pem -o StrictHostKeyChecking=no "$EC2_USERNAME@$EC2_HOST" "
+            mkdir -p /home/$EC2_USERNAME/jammy-server/config
+          "
+
+          sync_file deployment/app.jar "/home/$EC2_USERNAME/jammy-server/app.jar"
+          sync_file deployment/application-prod.yml "/home/$EC2_USERNAME/jammy-server/config/application-prod.yml"
+          sync_file jammy-server.service "/tmp/jammy-server.service"
+
+          ssh -i private_key.pem -o StrictHostKeyChecking=no "$EC2_USERNAME@$EC2_HOST" "
+            sudo mv /tmp/jammy-server.service /etc/systemd/system/jammy-server.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable jammy-server
+            sudo systemctl restart jammy-server
+          "
+
+          ssh -i private_key.pem -o StrictHostKeyChecking=no "$EC2_USERNAME@$EC2_HOST" "
+            for i in {1..20}; do
+              if curl -fsS http://localhost:8080/v3/api-docs > /dev/null; then
+                echo 'Application is running'
+                exit 0
+              fi
+
+              sleep 3
+            done
+
+            sudo journalctl -u jammy-server -n 100 --no-pager
+            exit 1
+          "
