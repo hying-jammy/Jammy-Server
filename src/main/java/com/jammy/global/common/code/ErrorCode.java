@@ -22,6 +22,8 @@ public enum ErrorCode implements BaseCode {
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, 400, "비밀번호가 일치하지 않습니다."),
 
     // room
+    INVALID_TRAVEL_PERIOD(HttpStatus.BAD_REQUEST, 400, "여행 종료일은 시작일보다 빠를 수 없습니다."),
+    INVALID_TIME_CAPSULE_OPEN_AT(HttpStatus.BAD_REQUEST, 400, "타임캡슐은 여행 종료일 당일 또는 이후에 공개할 수 있습니다."),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, 404, "존재하지 않는 방입니다."),
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, 404, "유효하지 않은 초대 코드입니다."),
     ALREADY_JOINED_ROOM(HttpStatus.CONFLICT, 409, "이미 참여 중인 방입니다."),

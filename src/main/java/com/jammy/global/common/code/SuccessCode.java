@@ -20,7 +20,7 @@ public enum SuccessCode implements BaseCode {
     ROOMS_RETRIEVED_SUCCESS(HttpStatus.OK, 200, "방 목록 조회에 성공했습니다."),
     ROOM_DETAIL_RETRIEVED_SUCCESS(HttpStatus.OK, 200, "방 상세 조회에 성공했습니다."),
     INVITE_CODE_VERIFY_SUCCESS(HttpStatus.OK, 200, "초대 코드 확인에 성공했습니다."),
-    ROOM_JOIN_SUCCESS(HttpStatus.CREATED, 201, "방 입장에 성공했습니다."),
+    ROOM_JOIN_SUCCESS(HttpStatus.OK, 200, "방 입장에 성공했습니다."),
 
     // diary
     DIARY_CREATE_SUCCESS(HttpStatus.CREATED, 201, "일기 작성에 성공했습니다."),
