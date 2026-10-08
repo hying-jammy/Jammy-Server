@@ -39,4 +39,11 @@ public class RoomMember extends BaseEntity {
         this.room = room;
         this.user = user;
     }
+
+    public static RoomMember of(Room room, User user) {
+        return RoomMember.builder()
+                .room(room)
+                .user(user)
+                .build();
+    }
 }
