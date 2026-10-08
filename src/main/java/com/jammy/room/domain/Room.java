@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Getter
@@ -54,4 +55,23 @@ public class Room extends BaseEntity {
         this.memberLimit = memberLimit;
         this.timeCapsuleOpenAt = timeCapsuleOpenAt;
     }
+
+    public RoomStatus getRoomStatus(LocalDate today) {
+        if (today.isBefore(startDate)) {
+            return RoomStatus.UPCOMING;
+        }
+        if (today.isAfter(endDate)) {
+            return RoomStatus.COMPLETED;
+        }
+        return RoomStatus.ONGOING;
+    }
+
+    public TimeCapsuleStatus getTimeCapsuleStatus(LocalDateTime now) {
+        return now.isBefore(timeCapsuleOpenAt) ? TimeCapsuleStatus.LOCKED : TimeCapsuleStatus.OPENED;
+    }
+
+    public Integer getTimeCapsuleDday(LocalDate today) {
+        return Math.toIntExact(ChronoUnit.DAYS.between(today, timeCapsuleOpenAt.toLocalDate()));
+    }
+
 }

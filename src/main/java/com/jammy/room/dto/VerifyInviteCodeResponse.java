@@ -9,7 +9,7 @@ import java.util.List;
 
 @Schema(description = "초대 코드 확인 응답")
 public record VerifyInviteCodeResponse(
-        @Schema(description = "방 식별자", example = "1")
+        @Schema(description = "방 ID", example = "1")
         Long roomId,
 
         @Schema(description = "여행 제목", example = "부산 여행")
