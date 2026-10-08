@@ -5,6 +5,8 @@ import com.jammy.global.exception.BusinessException;
 import com.jammy.room.domain.Room;
 import com.jammy.room.dto.CreateRoomRequest;
 import com.jammy.room.dto.CreateRoomResponse;
+import com.jammy.room.dto.GetRoomResponse;
+import com.jammy.room.dto.GetRoomsResponse;
 import com.jammy.room.dto.JoinRoomRequest;
 import com.jammy.room.dto.JoinRoomResponse;
 import com.jammy.room.dto.VerifyInviteCodeResponse;
@@ -21,8 +23,12 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +36,7 @@ import java.util.Locale;
 public class RoomService {
 
     private static final int MAX_INVITE_CODE_ATTEMPTS = 10;
+    private static final ZoneId TIME_ZONE = ZoneId.of("Asia/Seoul");
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -55,6 +62,41 @@ public class RoomService {
         }
 
         throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    public List<GetRoomsResponse> getRooms(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        List<Room> joinedRooms = roomMemberRepository.findByUserIdOrderByRoomStartDateDescRoomIdDesc(userId).stream()
+                .map(RoomMember::getRoom)
+                .toList();
+        if (joinedRooms.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Long> memberCounts = getMemberCounts(joinedRooms);
+        LocalDateTime now = LocalDateTime.now(TIME_ZONE);
+
+        return joinedRooms.stream()
+                .map(room -> GetRoomsResponse.from(room, memberCounts.getOrDefault(room.getId(), 0L), now))
+                .toList();
+    }
+
+    public GetRoomResponse getRoom(Long roomId) {
+        if (roomId == null || roomId < 1) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+        List<RoomMember> roomMembers = roomMemberRepository.findByRoomIdOrderByIdAsc(roomId);
+
+        return GetRoomResponse.from(room, roomMembers, LocalDateTime.now(TIME_ZONE));
     }
 
     public VerifyInviteCodeResponse verifyInviteCode(String inviteCode) {
@@ -83,6 +125,18 @@ public class RoomService {
         roomMemberRepository.save(RoomMember.of(room, user));
 
         return JoinRoomResponse.from(room);
+    }
+
+    private Map<Long, Long> getMemberCounts(List<Room> joinedRooms) {
+        List<Long> roomIds = joinedRooms.stream()
+                .map(Room::getId)
+                .toList();
+
+        return roomMemberRepository.countMembersByRoomIdIn(roomIds).stream()
+                .collect(Collectors.toMap(
+                        RoomMemberRepository.MemberCount::getRoomId,
+                        RoomMemberRepository.MemberCount::getMemberCount
+                ));
     }
 
     private String normalizeInviteCode(String inviteCode) {

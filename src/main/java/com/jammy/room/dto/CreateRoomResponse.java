@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Schema(description = "방 생성 응답")
 public record CreateRoomResponse(
-        @Schema(description = "방 식별자", example = "1")
+        @Schema(description = "방 ID", example = "1")
         Long roomId,
 
         @Schema(description = "친구들에게 공유할 초대 코드", example = "A7K-4F2M")
