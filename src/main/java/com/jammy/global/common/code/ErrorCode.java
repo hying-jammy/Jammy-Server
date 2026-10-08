@@ -34,8 +34,8 @@ public enum ErrorCode implements BaseCode {
     INVALID_DIARY_TYPE(HttpStatus.BAD_REQUEST, 400, "유효하지 않은 일기 타입입니다."),
 
     // time capsule
-    TIME_CAPSULE_LOCKED(HttpStatus.FORBIDDEN, 409, "아직 열 수 없는 타임캡슐입니다."),
-    TIME_CAPSULE_ALREADY_OPENED(HttpStatus.FORBIDDEN, 409, "이미 열린 타임캡슐입니다."),
+    TIME_CAPSULE_LOCKED(HttpStatus.CONFLICT, 409, "아직 열 수 없는 타임캡슐입니다."),
+    TIME_CAPSULE_ALREADY_OPENED(HttpStatus.CONFLICT, 409, "이미 열린 타임캡슐입니다."),
 
     // file
     EMPTY_FILE(HttpStatus.BAD_REQUEST, 400, "업로드할 파일이 비어 있습니다."),
