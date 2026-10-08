@@ -1,0 +1,103 @@
+name: Seed Data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seed-data
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install YAML parser
+        run: python -m pip install 'PyYAML>=6.0,<7'
+
+      - name: Seed database on EC2
+        env:
+          SEED_SQL: ${{ secrets.SEED_SQL }}
+          APPLICATION_YML_PROD: ${{ secrets.APPLICATION_YML_PROD }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shlex
+          import subprocess
+          from urllib.parse import unquote, urlsplit
+          import yaml
+
+          seed_sql = os.environ.get('SEED_SQL', '')
+          if not seed_sql.strip():
+              raise SystemExit('SEED_SQL 시크릿을 등록해주세요.')
+
+          try:
+              datasource = yaml.safe_load(os.environ['APPLICATION_YML_PROD'])['spring']['datasource']
+          except (yaml.YAMLError, KeyError, TypeError):
+              raise SystemExit('APPLICATION_YML_PROD의 YAML 및 DB 설정을 확인해주세요.')
+
+          def resolve(match):
+              name, default = match.groups()
+              if name in os.environ:
+                  return os.environ[name]
+              if default is not None:
+                  return default
+              raise SystemExit(f'환경 변수 {name}을 설정해주세요.')
+
+          datasource = {key: re.sub(r'\$\{([^}:]+)(?::([^}]*))?\}', resolve, str(datasource[key]))
+                        for key in ('url', 'username', 'password')}
+          url = urlsplit(datasource['url'].removeprefix('jdbc:'))
+          if url.scheme != 'mysql' or not url.hostname or not url.path.strip('/'):
+              raise SystemExit('MySQL JDBC URL을 확인해주세요.')
+
+          payload = dict(host=url.hostname, port=url.port or 3306,
+                         database=unquote(url.path.lstrip('/')), user=datasource['username'],
+                         password=datasource['password'], sql=seed_sql)
+          remote = r"""
+          import json, os, re, shutil, subprocess, sys
+          data = json.load(sys.stdin)
+          if not shutil.which('mysql'):
+              sys.exit('EC2에 mysql 클라이언트가 필요합니다.')
+          result = subprocess.run(['mysql', '--protocol=TCP', '--default-character-set=utf8mb4',
+                          '--connect-timeout=15', '--host', data['host'], '--port', str(data['port']),
+                          '--user', data['user'], '--database', data['database']],
+                         input=data['sql'], text=True,
+                         env=dict(os.environ, MYSQL_PWD=data['password']),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+          if result.returncode:
+              error = re.search(r'ERROR (\d+) \(([A-Z0-9]+)\)', result.stderr)
+              detail = f' (MySQL {error.group(1)}, SQLSTATE {error.group(2)})' if error else ''
+              sys.exit('샘플 SQL 실행에 실패했습니다.' + detail)
+          print('샘플 데이터 생성 완료')
+          """
+          key_file = Path(os.environ['RUNNER_TEMP']) / 'seed-key.pem'
+          try:
+              key_file.touch(mode=0o600)
+              key_file.chmod(0o600)
+              key_file.write_text(os.environ['EC2_SSH_KEY'] + '\n')
+              subprocess.run(['ssh', '-i', str(key_file), '-o', 'BatchMode=yes',
+                              '-o', 'ConnectTimeout=15', '-o', 'StrictHostKeyChecking=accept-new',
+                              f"{os.environ['EC2_USERNAME']}@{os.environ['EC2_HOST']}",
+                              'python3 -c ' + shlex.quote(remote)],
+                             input=json.dumps(payload), text=True, check=True)
+          finally:
+              key_file.unlink(missing_ok=True)
+          PY
