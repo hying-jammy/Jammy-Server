@@ -14,6 +14,10 @@ public enum ErrorCode implements BaseCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, 401, "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, 403, "접근 권한이 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, 404, "요청한 리소스를 찾을 수 없습니다."),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, 405, "지원하지 않는 HTTP 메서드입니다."),
+    NOT_ACCEPTABLE(HttpStatus.NOT_ACCEPTABLE, 406, "지원하지 않는 응답 형식입니다."),
+    PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, 413, "업로드할 수 있는 최대 용량을 초과했습니다."),
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, 415, "지원하지 않는 Content-Type입니다."),
     CONFLICT(HttpStatus.CONFLICT, 409, "이미 존재하는 리소스입니다."),
 
     // auth
